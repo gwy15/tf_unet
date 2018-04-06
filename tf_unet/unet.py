@@ -196,6 +196,7 @@ class Unet(object):
                                                           tf.reshape(pixel_wise_softmax_2(logits), [-1, n_class])))
         
         self.predicter = pixel_wise_softmax_2(logits)
+        
         self.correct_pred = tf.equal(tf.argmax(self.predicter, 3), tf.argmax(self.y, 3))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_pred, tf.float32))
         
@@ -263,7 +264,7 @@ class Unet(object):
             
             y_dummy = np.empty((x_test.shape[0], x_test.shape[1], x_test.shape[2], self.n_class))
             prediction = sess.run(self.predicter, feed_dict={self.x: x_test, self.y: y_dummy, self.keep_prob: 1.})
-            
+        
         return prediction
     
     def save(self, sess, model_path):
@@ -388,7 +389,7 @@ class Trainer(object):
         :param write_graph: Flag if the computation graph should be written as protobuf file to the output path
         :param prediction_path: path where to save predictions on each epoch
         """
-        save_path = os.path.join(output_path, "model.cpkt")
+        save_path = os.path.join(output_path, "model.ckpt")
         if epochs == 0:
             return save_path
         

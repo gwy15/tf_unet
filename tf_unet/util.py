@@ -68,7 +68,7 @@ def to_rgb(img):
     :returns img: the rgb image [nx, ny, 3]
     """
     img = np.atleast_3d(img)
-    channels = img.shape[2]
+    channels = img.shape[-1]
     if channels < 3:
         img = np.tile(img, 3)
 
@@ -79,7 +79,7 @@ def to_rgb(img):
     return img
 
 
-def crop_to_shape(data, shape):
+def crop_to_shape(data, shape, ch=1):
     """
     Crops the array to the given image shape by removing the border (expects a tensor of shape [batches, nx, ny, channels].
 
@@ -88,7 +88,10 @@ def crop_to_shape(data, shape):
     """
     offset0 = (data.shape[1] - shape[1])//2
     offset1 = (data.shape[2] - shape[2])//2
-    return data[:, offset0:(-offset0), offset1:(-offset1)]
+    if ch == 1:
+        return data[:, offset0:(-offset0), offset1:(-offset1)]
+    else:
+        return data[:, offset0:(-offset0), offset1:(-offset1), :]
 
 
 def combine_img_prediction(data, gt, pred):
@@ -102,12 +105,29 @@ def combine_img_prediction(data, gt, pred):
     :returns img: the concatenated rgb image 
     """
     ny = pred.shape[2]
-    ch = data.shape[3]
-    img = np.concatenate((to_rgb(crop_to_shape(data, pred.shape).reshape(-1, ny, ch)),
-                          to_rgb(crop_to_shape(
-                              gt[..., 1], pred.shape).reshape(-1, ny, 1)),
-                          to_rgb(pred[..., 1].reshape(-1, ny, 1))),
-                         axis=1)
+    ch = 3
+
+    colorIndex = np.argmax(pred, axis=3)
+    predimg = np.ndarray(pred.shape[:3] + (3,), dtype=np.float32)
+    for i in range(3):
+        predimg[..., i] = ((colorIndex >> i) & 1).astype(np.float32)
+
+    colorIndex = np.argmax(gt, axis=3)
+    gtimg = np.ndarray(gt.shape[:3] + (3,), dtype=np.float32)
+    for i in range(3):
+        gtimg[..., i] = ((colorIndex.astype(np.int) >> i)
+                         & 1).astype(np.float32)
+
+    im1 = crop_to_shape(to_rgb(data), pred.shape, 3)
+    im2 = crop_to_shape(to_rgb(gtimg), pred.shape, 3)
+    im3 = to_rgb(predimg)
+
+    img = np.concatenate(
+        (im1.reshape(-1, ny, ch),
+         im2.reshape(-1, ny, ch),
+         im3.reshape(-1, ny, ch)),
+        axis=1)
+    # print(img.shape)
     return img
 
 
